@@ -115,11 +115,15 @@ func (s *fileService) FinalizeUpload(ctx context.Context, sessionID string) (str
 		},
 	)
 
+	go s.removedProcessedChunks(sessionID)
+
 	return uploadStream.FileID.(primitive.ObjectID).Hex(), err
 }
 
 func (s *fileService) AbortUpload(ctx context.Context, sessionID string) error {
-	_ = os.RemoveAll(filepath.Join(s.tempDir, sessionID))
+	if err := s.removedProcessedChunks(sessionID); err != nil {
+		return err
+	}
 	_, err := s.metadata.UpdateOne(ctx,
 		bson.M{"_id": sessionID},
 		bson.M{"$set": bson.M{"status": "aborted"}},
@@ -147,4 +151,8 @@ func safeOpenChunk(baseDir, sessionID string, chunkNum int) (*os.File, error) {
 	safePath := filepath.Join(dir, filepath.Base(chunkFilename))
 	// #nosec G304 -- path sanitized with filepath.Base
 	return os.Open(safePath)
+}
+
+func (s *fileService) removedProcessedChunks(sessionID string) error {
+	return os.RemoveAll(filepath.Join(s.tempDir, sessionID))
 }
