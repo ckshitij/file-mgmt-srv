@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -21,7 +22,8 @@ type ServerConfig struct {
 }
 
 func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	safePath := filepath.Clean(path)
+	data, err := os.ReadFile(safePath)
 	if err != nil {
 		return nil, err
 	}

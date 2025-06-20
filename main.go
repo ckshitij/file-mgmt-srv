@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/ckshitij/file-mgmt-srv/config"
@@ -68,13 +70,28 @@ func main() {
 		handler = filesrv.MakeHTTPHandler(endpoints, logkit.With(logger, "component", "HTTP"))
 	}
 
-	srv := &http.Server{
-		Addr:         fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
-		Handler:      handler,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 300 * time.Second,
-	}
+	errs := make(chan error)
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errs <- fmt.Errorf("%s", <-c)
+	}()
 
-	level.Info(logger).Log("msg", "Server listening on :", cfg.Server.Port)
-	log.Fatal(srv.ListenAndServe())
+	go func(handler http.Handler) {
+		httpAddress := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
+		srv := &http.Server{
+			Addr:         httpAddress,
+			Handler:      handler,
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 300 * time.Second,
+		}
+		if err := level.Info(logger).Log("msg", "server starting to listen", "addr", httpAddress); err != nil {
+			fmt.Println("error will logging server start listening")
+		}
+		errs <- srv.ListenAndServe()
+	}(handler)
+
+	if err := logger.Log("exit", <-errs); err != nil {
+		fmt.Println("error will logging server exit error")
+	}
 }

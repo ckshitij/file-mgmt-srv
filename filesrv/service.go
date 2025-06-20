@@ -57,12 +57,12 @@ func (s *fileService) UploadChunk(ctx context.Context, sessionID string, chunkNu
 	}
 
 	dir := filepath.Join(s.tempDir, sessionID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return err
 	}
 
 	chunkPath := filepath.Join(dir, fmt.Sprintf("%d.chunk", chunkNum))
-	if err := os.WriteFile(chunkPath, data, 0644); err != nil {
+	if err := os.WriteFile(chunkPath, data, 0600); err != nil {
 		return err
 	}
 
@@ -92,13 +92,14 @@ func (s *fileService) FinalizeUpload(ctx context.Context, sessionID string) (str
 	defer uploadStream.Close()
 
 	for i := range meta.TotalChunks {
-		chunkPath := filepath.Join(s.tempDir, sessionID, fmt.Sprintf("%d.chunk", i))
-		f, err := os.Open(chunkPath)
+		f, err := safeOpenChunk(s.tempDir, sessionID, i)
 		if err != nil {
 			return "", err
 		}
 		_, err = io.Copy(uploadStream, f)
-		f.Close()
+		if cerr := f.Close(); cerr != nil {
+			return "", cerr
+		}
 		if err != nil {
 			return "", err
 		}
@@ -138,4 +139,12 @@ func (s *fileService) DownloadFile(ctx context.Context, filename string) ([]byte
 		return nil, err
 	}
 	return data, nil
+}
+
+func safeOpenChunk(baseDir, sessionID string, chunkNum int) (*os.File, error) {
+	chunkFilename := fmt.Sprintf("%d.chunk", chunkNum)
+	dir := filepath.Join(baseDir, filepath.Base(sessionID))
+	safePath := filepath.Join(dir, filepath.Base(chunkFilename))
+	// #nosec G304 -- path sanitized with filepath.Base
+	return os.Open(safePath)
 }
