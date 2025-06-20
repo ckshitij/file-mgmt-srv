@@ -41,7 +41,6 @@ func (s *fileService) InitUpload(ctx context.Context, filename string, totalChun
 		Status:         "in_progress",
 		CreatedAt:      time.Now(),
 	}
-	fmt.Println("meta data created", meta)
 	_, err := s.metadata.InsertOne(ctx, meta)
 	if err != nil {
 		return "", err

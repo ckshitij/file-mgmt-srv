@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-kit/kit/transport"
 	kitHttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 )
@@ -14,34 +15,43 @@ import (
 func MakeHTTPHandler(e Endpoints, logger log.Logger) http.Handler {
 	mux := http.NewServeMux()
 
+	options := []kitHttp.ServerOption{
+		kitHttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
+	}
+
 	mux.Handle("/init-upload", kitHttp.NewServer(
 		e.InitUpload,
 		decodeInitUploadRequest,
 		encodeResponse,
+		options...,
 	))
 
 	mux.Handle("/upload-chunk", kitHttp.NewServer(
 		e.UploadChunk,
 		decodeUploadChunkRequest,
 		encodeResponse,
+		options...,
 	))
 
 	mux.Handle("/finalize-upload", kitHttp.NewServer(
 		e.FinalizeUpload,
 		decodeFinalizeRequest,
 		encodeResponse,
+		options...,
 	))
 
 	mux.Handle("/abort-upload", kitHttp.NewServer(
 		e.AbortUpload,
 		decodeAbortRequest,
 		encodeResponse,
+		options...,
 	))
 
 	mux.Handle("/download", kitHttp.NewServer(
 		e.Download,
 		decodeDownloadRequest,
 		encodeDownloadResponse,
+		options...,
 	))
 
 	// ✅ Register HTML UI route on correct mux

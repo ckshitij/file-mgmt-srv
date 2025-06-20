@@ -103,7 +103,7 @@
       const progressBar = document.getElementById('progressBar');
       if (!file) return;
 
-      const chunkSize = 4 * 1024 * 1024; // 4MB
+      const chunkSize = 16 * 1024 * 1024; // 4MB
       const totalChunks = Math.ceil(file.size / chunkSize);
 
       // Step 1: init upload

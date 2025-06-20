@@ -2,20 +2,35 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/ckshitij/media-mgmt-srv/config"
 	dbmongo "github.com/ckshitij/media-mgmt-srv/db-mongo"
 	"github.com/ckshitij/media-mgmt-srv/filesrv"
 	logkit "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+var (
+	CollectionName  string = "uploads"
+	GridFSChunkSize int32  = 8 * 1024 * 1024 // 8MB
 )
 
 func main() {
+
+	cfg, err := config.LoadConfig("resource/config.yml")
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+
 	ctx := context.Background()
-	uri := ""
+	uri := cfg.MongoDB.URI
 	client, err := dbmongo.NewMongoDBClient(ctx, uri)
 	if err != nil {
 		log.Fatal(err)
@@ -27,22 +42,39 @@ func main() {
 	}
 
 	db := client.GetDatabase("upload_service")
-	fsBucket, _ := gridfs.NewBucket(db)
-	metadataColl := db.Collection("uploads")
+	fsBucket, _ := gridfs.NewBucket(db, &options.BucketOptions{
+		Name:           &CollectionName,
+		ChunkSizeBytes: &GridFSChunkSize,
+	})
+	uploadsCollection := db.Collection(CollectionName)
 
-	logger := logkit.NewLogfmtLogger(logkit.NewSyncWriter(log.Writer()))
+	var logger logkit.Logger
+	{
+		logger = logkit.NewLogfmtLogger(os.Stderr)
+		logger = logkit.With(logger, "ts", logkit.DefaultTimestampUTC)
+		logger = logkit.With(logger, "caller", logkit.DefaultCaller)
+	}
 
-	svc := filesrv.NewFileService(metadataColl, fsBucket)
+	var svc filesrv.FileService
+	{
+		svc = filesrv.NewFileService(uploadsCollection, fsBucket)
+		svc = filesrv.LoggingMiddleware(logger)(svc)
+	}
+
 	endpoints := filesrv.MakeEndpoints(svc)
-	handler := filesrv.MakeHTTPHandler(endpoints, logger)
+
+	var handler http.Handler
+	{
+		handler = filesrv.MakeHTTPHandler(endpoints, logkit.With(logger, "component", "HTTP"))
+	}
 
 	srv := &http.Server{
-		Addr:         ":8080",
+		Addr:         fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
 		Handler:      handler,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 300 * time.Second,
 	}
 
-	level.Info(logger).Log("msg", "Server listening on :8080")
+	level.Info(logger).Log("msg", "Server listening on :", cfg.Server.Port)
 	log.Fatal(srv.ListenAndServe())
 }
