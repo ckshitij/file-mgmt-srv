@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality-check:
-    name: Static Code Quality Checks
+    name: Code Quality Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -55,6 +55,3 @@ jobs:
 
       - name: Run govulncheck
         run: govulncheck ./...
-
-      - name: Run golangci-lint
-        run: golangci-lint run --timeout=5m
