@@ -1,3 +1,6 @@
+// Package filesrv provides a file upload and download service
+// built on top of MongoDB GridFS. It supports chunked uploads
+// with resumability, metadata tracking, and safe disk buffering.
 package filesrv
 
 import (
@@ -15,12 +18,15 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
 )
 
+// fileService implements the FileService interface and handles
+// file uploads, chunk buffering, metadata storage, and downloads.
 type fileService struct {
-	metadata *mongo.Collection
-	fsBucket *gridfs.Bucket
-	tempDir  string
+	metadata *mongo.Collection // MongoDB collection to track upload metadata
+	fsBucket *gridfs.Bucket    // GridFS bucket for final file storage
+	tempDir  string            // Directory to temporarily buffer chunk files
 }
 
+// NewFileService creates a new instance of fileService.
 func NewFileService(metaColl *mongo.Collection, fsBucket *gridfs.Bucket) FileService {
 	return &fileService{
 		metadata: metaColl,
@@ -29,6 +35,9 @@ func NewFileService(metaColl *mongo.Collection, fsBucket *gridfs.Bucket) FileSer
 	}
 }
 
+// InitUpload initializes a new upload session by storing
+// metadata such as filename, chunk size, and total chunks.
+// It returns a session ID to be used for uploading chunks.
 func (s *fileService) InitUpload(ctx context.Context, filename string, totalChunks, chunkSize int) (string, error) {
 	sessionID := primitive.NewObjectID().Hex()
 
@@ -49,6 +58,8 @@ func (s *fileService) InitUpload(ctx context.Context, filename string, totalChun
 	return sessionID, nil
 }
 
+// UploadChunk saves an individual chunk of a file to local
+// disk and updates the metadata to mark the chunk as received.
 func (s *fileService) UploadChunk(ctx context.Context, sessionID string, chunkNum int, data []byte) error {
 	meta := UploadMetadata{}
 	err := s.metadata.FindOne(ctx, bson.M{"_id": sessionID}).Decode(&meta)
@@ -74,6 +85,10 @@ func (s *fileService) UploadChunk(ctx context.Context, sessionID string, chunkNu
 	return err
 }
 
+// FinalizeUpload assembles all uploaded chunks in order,
+// streams them to GridFS, marks the upload as complete,
+// and removes local chunk files from disk.
+// Returns the final file's ObjectID as a hex string.
 func (s *fileService) FinalizeUpload(ctx context.Context, sessionID string) (string, error) {
 	meta := UploadMetadata{}
 	err := s.metadata.FindOne(ctx, bson.M{"_id": sessionID}).Decode(&meta)
@@ -120,6 +135,9 @@ func (s *fileService) FinalizeUpload(ctx context.Context, sessionID string) (str
 	return uploadStream.FileID.(primitive.ObjectID).Hex(), err
 }
 
+// AbortUpload cancels an in-progress upload and cleans up
+// any locally stored chunk files. The metadata status is
+// marked as "aborted".
 func (s *fileService) AbortUpload(ctx context.Context, sessionID string) error {
 	if err := s.removedProcessedChunks(sessionID); err != nil {
 		return err
@@ -131,6 +149,8 @@ func (s *fileService) AbortUpload(ctx context.Context, sessionID string) error {
 	return err
 }
 
+// DownloadFile retrieves a complete file from GridFS
+// using the filename and returns its content in memory.
 func (s *fileService) DownloadFile(ctx context.Context, filename string) ([]byte, error) {
 	fileStream, err := s.fsBucket.OpenDownloadStreamByName(filename)
 	if err != nil {
@@ -145,6 +165,8 @@ func (s *fileService) DownloadFile(ctx context.Context, filename string) ([]byte
 	return data, nil
 }
 
+// safeOpenChunk sanitizes the file path and safely opens a chunk file
+// from disk. It prevents path traversal using filepath.Base.
 func safeOpenChunk(baseDir, sessionID string, chunkNum int) (*os.File, error) {
 	chunkFilename := fmt.Sprintf("%d.chunk", chunkNum)
 	dir := filepath.Join(baseDir, filepath.Base(sessionID))
@@ -153,6 +175,8 @@ func safeOpenChunk(baseDir, sessionID string, chunkNum int) (*os.File, error) {
 	return os.Open(safePath)
 }
 
+// removedProcessedChunks deletes all buffered chunk files
+// for the specified upload session from the local temp directory.
 func (s *fileService) removedProcessedChunks(sessionID string) error {
 	return os.RemoveAll(filepath.Join(s.tempDir, sessionID))
 }

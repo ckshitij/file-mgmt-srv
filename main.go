@@ -75,6 +75,7 @@ func main() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		errs <- fmt.Errorf("%s", <-c)
+		close(c)
 	}()
 
 	go func(handler http.Handler) {
@@ -94,4 +95,6 @@ func main() {
 	if err := logger.Log("exit", <-errs); err != nil {
 		fmt.Println("error will logging server exit error")
 	}
+	client.Disconnect(ctx)
+	close(errs)
 }
