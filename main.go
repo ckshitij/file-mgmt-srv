@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/ckshitij/media-mgmt-srv/config"
-	dbmongo "github.com/ckshitij/media-mgmt-srv/db-mongo"
-	"github.com/ckshitij/media-mgmt-srv/filesrv"
+	"github.com/ckshitij/file-mgmt-srv/config"
+	dbmongo "github.com/ckshitij/file-mgmt-srv/db-mongo"
+	"github.com/ckshitij/file-mgmt-srv/filesrv"
 	logkit "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"

@@ -4,4 +4,4 @@ server:
   port: 8088
 
 mongo_db:
-  uri: "mongodb://root:example@localhost:27017"
+  uri: "mongodb://root:example@mongodb:27017"

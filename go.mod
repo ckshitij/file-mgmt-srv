@@ -1,4 +1,4 @@
-module github.com/ckshitij/media-mgmt-srv
+module github.com/ckshitij/file-mgmt-srv
 
 go 1.24.2
 

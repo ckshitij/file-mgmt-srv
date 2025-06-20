@@ -1,9 +1,9 @@
-# Media Management Service
+# File Management Service
 
-Service used to centrally store the differnt type media like images, video audio etc and can be accessible using the endpoints.
+Service used to centrally store the differnt type media files like images, video audio etc and can be accessible using the endpoints.
 Initally it is going to support the Upload and Download functionality using `mongo DB grid-fs` and `go-kit` to access the resource.
 
-## API Workflow:
+## Service Flow
 
 - Upload file workflow has the below steps:
     - Initialize the Upload process
@@ -37,4 +37,45 @@ Initally it is going to support the Upload and Download functionality using `mon
             - UploadDate
             - fileName
 
+- Download a file by name
 
+## Service Usage
+
+- Clone the repository
+```
+git clone https://github.com/ckshitij/file-mgmt-srv.git
+```
+
+- Intitialize the project
+```
+go mod tidy
+```
+
+- Change the config under `resoure/config.yml` like mongoDB URL.
+
+- Run the service 
+```
+go run main.go
+```
+
+- Access the UI on ```http://localhost:8088/```
+
+### Docker Compose 
+
+- Directly run docker-compose it will boot up the below services:
+    - mongo-db
+    - mongo-express
+        - ```http://localhost:8081/```
+        - user: admin
+        - password: pass
+    - file-mgmt-srv
+
+- Run docker-compose command
+```
+ docker-compose up --build -d
+```
+
+- Shutdown the docker-compose
+```
+docker-compose down
+```

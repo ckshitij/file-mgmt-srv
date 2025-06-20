@@ -3,11 +3,11 @@ services:
     image: mongo:8.0.9-noble
     container_name: mongodb-instance
     ports:
-      - "27017:27017"         # Host:Container port mapping
+      - "27017:27017"
     volumes:
-      - /tmp/mongo/storage:/data/db   # Persistent storage
+      - /tmp/mongo/storage:/data/db
     networks:
-      - mongo_net             # Attach to custom network
+      - mongo_net
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
@@ -16,7 +16,7 @@ services:
     image: mongo-express
     container_name: mongo-express
     ports:
-      - "8081:8081"  # Web UI port for Mongo Express
+      - "8081:8081"
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_ADMINUSERNAME: root
@@ -26,6 +26,22 @@ services:
     networks:
       - mongo_net
 
+  file-mgmt-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: file-mgmt-service
+    ports:
+      - "8088:8088"
+    networks:
+      - mongo_net
+    depends_on:
+      - mongodb
+    environment:
+      SERVICE_PORT: 8088
+    volumes:
+      - ./resource:/root/resource:ro # Mount config.yml for access
+
 networks:
-  mongo_net:                  # User-defined network
+  mongo_net:
     driver: bridge
