@@ -95,6 +95,8 @@ func main() {
 	if err := logger.Log("exit", <-errs); err != nil {
 		fmt.Println("error will logging server exit error")
 	}
-	client.Disconnect(ctx)
+	if err := client.Disconnect(ctx); err != nil {
+		fmt.Println("failed to disconnect the mongo client with error : ", err.Error())
+	}
 	close(errs)
 }
