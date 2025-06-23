@@ -26,6 +26,7 @@ WORKDIR /root/
 
 # Copy the binary
 COPY --from=builder /app/file-mgmt-srv .
+COPY --from=builder /app/index.html .
 COPY --from=builder /app/resource ./resource
 
 # (Optional) Override default port if you want
